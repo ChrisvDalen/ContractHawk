@@ -12,7 +12,11 @@ import {
   ChangelogEntry,
   ChangelogCreateDto,
   ApiListParams,
-  Lifecycle
+  Lifecycle,
+  SyncMode,
+  Diff,
+  ImportResult,
+  ApiSyncRun
 } from '../models/api-contract.model';
 
 @Injectable({
@@ -52,6 +56,8 @@ export class ApiContractService {
   }
 
   create(dto: ApiCreateDto): Observable<ApiDetail> {
+    console.log('Creating API:', dto);
+    console.log('POST to:', this.baseUrl);
     return this.http.post<ApiDetail>(this.baseUrl, dto);
   }
 
@@ -85,6 +91,18 @@ export class ApiContractService {
 
   deleteChangelogEntry(apiId: string, entryId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${apiId}/changelog/${entryId}`);
+  }
+
+  previewOpenApiDiff(apiId: string): Observable<Diff> {
+    return this.http.get<Diff>(`${this.baseUrl}/${apiId}/openapi-diff`);
+  }
+
+  importOpenApi(apiId: string, mode: SyncMode): Observable<ImportResult> {
+    return this.http.post<ImportResult>(`${this.baseUrl}/${apiId}/import-openapi`, { mode });
+  }
+
+  getSyncRuns(apiId: string): Observable<ApiSyncRun[]> {
+    return this.http.get<ApiSyncRun[]>(`${this.baseUrl}/${apiId}/sync-runs`);
   }
 }
 

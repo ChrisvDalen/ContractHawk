@@ -9,7 +9,11 @@ import {
   HttpMethod,
   ChangelogType,
   EndpointCreateDto,
-  ChangelogCreateDto
+  ChangelogCreateDto,
+  SyncMode,
+  Diff,
+  ImportResult,
+  ApiSyncRun
 } from '../../models/api-contract.model';
 
 @Component({
@@ -75,6 +79,7 @@ import {
       <div class="tabs">
         <button class="tab" [class.active]="activeTab === 'endpoints'" (click)="activeTab = 'endpoints'">Endpoints</button>
         <button class="tab" [class.active]="activeTab === 'changelog'" (click)="activeTab = 'changelog'">Changelog</button>
+        <button class="tab" [class.active]="activeTab === 'openapi'" (click)="activeTab = 'openapi'" *ngIf="api.openApiUrl">OpenAPI Sync</button>
       </div>
 
       <div class="tab-content" *ngIf="activeTab === 'endpoints'">
@@ -210,6 +215,112 @@ import {
           <p *ngIf="entry.details">{{ entry.details }}</p>
         </div>
       </div>
+
+      <div class="tab-content" *ngIf="activeTab === 'openapi' && api.openApiUrl">
+        <div class="card">
+          <h3>OpenAPI Sync</h3>
+          <p><strong>OpenAPI URL:</strong> <a [href]="api.openApiUrl" target="_blank">{{ api.openApiUrl }}</a></p>
+          
+          <div style="display: flex; gap: 12px; margin: 20px 0;">
+            <button class="btn btn-primary" (click)="previewDiff()" [disabled]="loadingDiff">
+              {{ loadingDiff ? 'Loading...' : 'Preview Diff' }}
+            </button>
+            <button class="btn btn-success" (click)="importOpenApi(SyncMode.MERGE)" [disabled]="importing">
+              {{ importing ? 'Importing...' : 'Import (Merge)' }}
+            </button>
+            <button class="btn btn-warning" (click)="confirmReplaceImport()" [disabled]="importing">
+              {{ importing ? 'Importing...' : 'Import (Replace)' }}
+            </button>
+          </div>
+
+          <div *ngIf="diffError" class="error-message" style="margin: 12px 0; padding: 12px; background: #fee; border: 1px solid #fcc;">
+            <strong>Error:</strong> {{ diffError }}
+          </div>
+
+          <div *ngIf="diff && !loadingDiff" class="card" style="margin-top: 20px;">
+            <h4>Preview Changes</h4>
+            
+            <div *ngIf="diff.addedEndpoints.length > 0" style="margin-bottom: 20px;">
+              <h5 style="color: #28a745;">Added Endpoints ({{ diff.addedEndpoints.length }})</h5>
+              <div *ngFor="let ep of diff.addedEndpoints" class="endpoint-item" style="background: #d4edda;">
+                <span class="endpoint-method" [ngClass]="'method-' + ep.method.toLowerCase()">{{ ep.method }}</span>
+                <strong>{{ ep.path }}</strong>
+                <p *ngIf="ep.description" style="margin-top: 4px;">{{ ep.description }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="diff.removedEndpoints.length > 0" style="margin-bottom: 20px;">
+              <h5 style="color: #dc3545;">Removed Endpoints ({{ diff.removedEndpoints.length }}) <span class="badge badge-breaking">Breaking</span></h5>
+              <div *ngFor="let ep of diff.removedEndpoints" class="endpoint-item" style="background: #f8d7da;">
+                <span class="endpoint-method" [ngClass]="'method-' + ep.method.toLowerCase()">{{ ep.method }}</span>
+                <strong>{{ ep.path }}</strong>
+                <p *ngIf="ep.description" style="margin-top: 4px;">{{ ep.description }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="diff.changedEndpoints.length > 0" style="margin-bottom: 20px;">
+              <h5 style="color: #ffc107;">Changed Endpoints ({{ diff.changedEndpoints.length }})</h5>
+              <div *ngFor="let change of diff.changedEndpoints" class="endpoint-item" style="background: #fff3cd;">
+                <span class="endpoint-method" [ngClass]="'method-' + change.current.method.toLowerCase()">{{ change.current.method }}</span>
+                <strong>{{ change.current.path }}</strong>
+                <p style="margin-top: 4px; font-size: 12px; color: #856404;">{{ change.changeDescription }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="diff.addedEndpoints.length === 0 && diff.removedEndpoints.length === 0 && diff.changedEndpoints.length === 0" style="padding: 20px; text-align: center; color: #666;">
+              No changes detected. Endpoints are in sync with OpenAPI spec.
+            </div>
+          </div>
+
+          <div *ngIf="importResult" class="card" style="margin-top: 20px; background: #d1ecf1; border: 1px solid #bee5eb;">
+            <h4>Import Result</h4>
+            <p><strong>Added:</strong> {{ importResult.addedCount }} | <strong>Updated:</strong> {{ importResult.updatedCount }} | <strong>Deleted:</strong> {{ importResult.deletedCount }}</p>
+            <div *ngIf="importResult.breaksDetected" style="margin-top: 12px;">
+              <span class="badge badge-breaking">Breaking Changes Detected!</span>
+              <div *ngFor="let bc of importResult.breakingChanges" style="margin-top: 8px; padding: 8px; background: #f8d7da; border-radius: 4px;">
+                <strong>{{ bc.type }}</strong>: {{ bc.method }} {{ bc.path }}
+                <p *ngIf="bc.details" style="font-size: 12px; margin-top: 4px;">{{ bc.details }}</p>
+              </div>
+            </div>
+            <button class="btn btn-primary" (click)="loadApi(api.id)" style="margin-top: 12px;">Refresh Page</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+          <h3>Sync History</h3>
+          <div *ngIf="loadingSyncRuns">Loading sync history...</div>
+          <table class="table" *ngIf="syncRuns.length > 0 && !loadingSyncRuns">
+            <thead>
+              <tr>
+                <th>Run At</th>
+                <th>Status</th>
+                <th>Mode</th>
+                <th>Changes</th>
+                <th>Breaking</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let run of syncRuns.slice(0, 10)" (click)="viewSyncRunDetails(run)" style="cursor: pointer;">
+                <td>{{ formatDate(run.runAt) }}</td>
+                <td>
+                  <span class="badge" [ngClass]="run.status === 'SUCCESS' ? 'badge-active' : 'badge-deprecated'">
+                    {{ run.status }}
+                  </span>
+                </td>
+                <td>{{ run.mode }}</td>
+                <td>+{{ run.addedCount }} ~{{ run.updatedCount }} -{{ run.deletedCount }}</td>
+                <td>
+                  <span *ngIf="run.breaksDetected" class="badge badge-breaking">Yes</span>
+                  <span *ngIf="!run.breaksDetected">-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div *ngIf="syncRuns.length === 0 && !loadingSyncRuns" style="padding: 20px; text-align: center; color: #666;">
+            No sync runs yet.
+          </div>
+        </div>
+      </div>
     </div>
 
     <div *ngIf="loading" class="card">
@@ -221,13 +332,21 @@ export class ApiDetailPageComponent implements OnInit {
   api: ApiDetail | null = null;
   loading = true;
   editing = false;
-  activeTab: 'endpoints' | 'changelog' = 'endpoints';
+  activeTab: 'endpoints' | 'changelog' | 'openapi' = 'endpoints';
   editingEndpoint: any = null;
   updating = false;
+  loadingDiff = false;
+  importing = false;
+  diff: Diff | null = null;
+  diffError: string | null = null;
+  importResult: ImportResult | null = null;
+  syncRuns: ApiSyncRun[] = [];
+  loadingSyncRuns = false;
 
   Lifecycle = Lifecycle;
   HttpMethod = HttpMethod;
   ChangelogType = ChangelogType;
+  SyncMode = SyncMode;
 
   editForm: FormGroup;
   endpointForm: FormGroup;
@@ -286,12 +405,99 @@ export class ApiDetailPageComponent implements OnInit {
         this.api = api;
         this.loading = false;
         this.populateEditForm();
+        if (api.openApiUrl) {
+          this.loadSyncRuns(id);
+        }
       },
       error: (err) => {
         console.error('Error loading API:', err);
         this.loading = false;
       }
     });
+  }
+
+  loadSyncRuns(apiId: string) {
+    this.loadingSyncRuns = true;
+    this.apiService.getSyncRuns(apiId).subscribe({
+      next: (runs) => {
+        this.syncRuns = runs;
+        this.loadingSyncRuns = false;
+      },
+      error: (err) => {
+        console.error('Error loading sync runs:', err);
+        this.loadingSyncRuns = false;
+      }
+    });
+  }
+
+  previewDiff() {
+    if (!this.api) return;
+    this.loadingDiff = true;
+    this.diffError = null;
+    this.diff = null;
+    
+    this.apiService.previewOpenApiDiff(this.api.id).subscribe({
+      next: (diff) => {
+        this.diff = diff;
+        this.loadingDiff = false;
+      },
+      error: (err) => {
+        this.loadingDiff = false;
+        if (err.error?.message) {
+          this.diffError = err.error.message;
+        } else if (err.message) {
+          this.diffError = err.message;
+        } else {
+          this.diffError = 'Failed to fetch OpenAPI spec. Check if the URL is accessible.';
+        }
+      }
+    });
+  }
+
+  importOpenApi(mode: SyncMode) {
+    if (!this.api) return;
+    this.importing = true;
+    this.importResult = null;
+    
+    this.apiService.importOpenApi(this.api.id, mode).subscribe({
+      next: (result) => {
+        this.importResult = result;
+        this.importing = false;
+        this.loadSyncRuns(this.api!.id);
+        // Reload API to refresh endpoints
+        setTimeout(() => this.loadApi(this.api!.id), 1000);
+      },
+      error: (err) => {
+        this.importing = false;
+        const errorMsg = err.error?.message || err.message || 'Failed to import OpenAPI';
+        alert('Import failed: ' + errorMsg);
+      }
+    });
+  }
+
+  confirmReplaceImport() {
+    if (!confirm('Replace mode will DELETE endpoints that are not in the OpenAPI spec. This may cause breaking changes. Continue?')) {
+      return;
+    }
+    this.importOpenApi(SyncMode.REPLACE);
+  }
+
+  viewSyncRunDetails(run: ApiSyncRun) {
+    // For now, just show alert. Could navigate to detail page later
+    let details = `Sync Run: ${this.formatDate(run.runAt)}\n`;
+    details += `Status: ${run.status}\n`;
+    details += `Mode: ${run.mode}\n`;
+    details += `Added: ${run.addedCount}, Updated: ${run.updatedCount}, Deleted: ${run.deletedCount}\n`;
+    if (run.breaksDetected && run.breakingChanges.length > 0) {
+      details += `\nBreaking Changes:\n`;
+      run.breakingChanges.forEach(bc => {
+        details += `- ${bc.type}: ${bc.method} ${bc.path}\n`;
+      });
+    }
+    if (run.errorMessage) {
+      details += `\nError: ${run.errorMessage}`;
+    }
+    alert(details);
   }
 
   populateEditForm() {

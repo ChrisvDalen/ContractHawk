@@ -91,3 +91,61 @@ export interface ApiListParams {
   dir?: string;
 }
 
+export enum SyncMode {
+  MERGE = 'MERGE',
+  REPLACE = 'REPLACE'
+}
+
+export enum SyncStatus {
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED'
+}
+
+export enum BreakingChangeType {
+  REMOVED_ENDPOINT = 'REMOVED_ENDPOINT',
+  PATH_CHANGED = 'PATH_CHANGED',
+  METHOD_CHANGED = 'METHOD_CHANGED'
+}
+
+export interface BreakingChange {
+  type: BreakingChangeType;
+  method: string;
+  path: string;
+  details?: string;
+}
+
+export interface ChangedEndpoint {
+  current: Endpoint;
+  proposed: Endpoint;
+  changeDescription: string;
+}
+
+export interface Diff {
+  addedEndpoints: Endpoint[];
+  removedEndpoints: Endpoint[];
+  changedEndpoints: ChangedEndpoint[];
+}
+
+export interface ImportResult {
+  syncRunId: string;
+  addedCount: number;
+  updatedCount: number;
+  deletedCount: number;
+  breaksDetected: boolean;
+  breakingChanges: BreakingChange[];
+}
+
+export interface ApiSyncRun {
+  id: string;
+  apiId: string;
+  runAt: string;
+  status: SyncStatus;
+  mode: SyncMode;
+  addedCount: number;
+  updatedCount: number;
+  deletedCount: number;
+  breaksDetected: boolean;
+  errorMessage?: string;
+  breakingChanges: BreakingChange[];
+}
+

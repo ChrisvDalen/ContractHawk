@@ -3,6 +3,8 @@ package com.contracthawk.controller;
 import com.contracthawk.dto.*;
 import com.contracthawk.entity.Lifecycle;
 import com.contracthawk.service.ApiContractService;
+import com.contracthawk.service.OpenApiSyncService;
+import com.contracthawk.service.SyncRunService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,6 +23,8 @@ import java.util.UUID;
 public class ApiContractController {
     
     private final ApiContractService apiContractService;
+    private final OpenApiSyncService openApiSyncService;
+    private final SyncRunService syncRunService;
     
     @GetMapping
     @Operation(summary = "List all API contracts", description = "Search, filter and sort API contracts")
@@ -106,6 +110,29 @@ public class ApiContractController {
     public ResponseEntity<Void> deleteChangelogEntry(@PathVariable UUID id, @PathVariable UUID entryId) {
         apiContractService.deleteChangelogEntry(id, entryId);
         return ResponseEntity.noContent().build();
+    }
+    
+    @PostMapping("/{id}/import-openapi")
+    @Operation(summary = "Import endpoints from OpenAPI spec")
+    public ResponseEntity<ImportResultDto> importOpenApi(
+            @PathVariable UUID id,
+            @Valid @RequestBody OpenApiImportRequestDto request) {
+        ImportResultDto result = openApiSyncService.importOpenApi(id, request.getMode());
+        return ResponseEntity.ok(result);
+    }
+    
+    @GetMapping("/{id}/openapi-diff")
+    @Operation(summary = "Preview diff between current endpoints and OpenAPI spec")
+    public ResponseEntity<DiffDto> previewOpenApiDiff(@PathVariable UUID id) {
+        DiffDto diff = openApiSyncService.previewDiff(id);
+        return ResponseEntity.ok(diff);
+    }
+    
+    @GetMapping("/{id}/sync-runs")
+    @Operation(summary = "Get sync run history for API")
+    public ResponseEntity<List<ApiSyncRunDto>> getSyncRuns(@PathVariable UUID id) {
+        List<ApiSyncRunDto> runs = syncRunService.getSyncRunsForApi(id);
+        return ResponseEntity.ok(runs);
     }
 }
 

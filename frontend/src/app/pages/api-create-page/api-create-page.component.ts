@@ -83,6 +83,10 @@ import { Lifecycle } from '../../models/api-contract.model';
           <textarea formControlName="description"></textarea>
         </div>
 
+        <div *ngIf="serverErrors.general" class="error-message" style="margin: 12px 0; padding: 12px; background: #fee; border: 1px solid #fcc; border-radius: 4px;">
+          <strong>Error:</strong> {{ serverErrors.general }}
+        </div>
+
         <div style="display: flex; gap: 12px; margin-top: 20px;">
           <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting">
             {{ submitting ? 'Creating...' : 'Create' }}
@@ -124,18 +128,22 @@ export class ApiCreatePageComponent {
     this.submitting = true;
     this.serverErrors = {};
 
+    console.log('Submitting form:', this.form.value);
+
     this.apiService.create(this.form.value).subscribe({
       next: (api) => {
+        console.log('API created successfully:', api);
         this.router.navigate(['/apis', api.id]);
       },
       error: (err) => {
+        console.error('Error creating API:', err);
         this.submitting = false;
         if (err.error?.fieldErrors) {
           err.error.fieldErrors.forEach((fieldError: any) => {
             this.serverErrors[fieldError.field] = fieldError.message;
           });
         } else {
-          this.serverErrors.general = err.error?.message || 'An error occurred';
+          this.serverErrors.general = err.error?.message || err.message || 'An error occurred while creating the API';
         }
       }
     });
