@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/contracthawk
+    username: contracthawk
+    password: contracthawk
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: contracthawk
+    password: contracthawk
+
+contracthawk:
+  storage:
+    local-dir: ./data/contracts
+
+logging:
+  level:
+    com.chrisvdalen.contracthawk: DEBUG

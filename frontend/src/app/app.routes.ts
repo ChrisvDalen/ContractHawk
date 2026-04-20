@@ -1,22 +1,14 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [
+export const appRoutes: Routes = [
   {
     path: '',
-    redirectTo: '/apis',
-    pathMatch: 'full'
+    pathMatch: 'full',
+    redirectTo: 'contracts',
   },
   {
-    path: 'apis',
-    loadComponent: () => import('./pages/api-list-page/api-list-page.component').then(m => m.ApiListPageComponent)
+    path: 'contracts',
+    loadChildren: () =>
+      import('./features/contracts/contracts.routes').then((m) => m.contractsRoutes),
   },
-  {
-    path: 'apis/new',
-    loadComponent: () => import('./pages/api-create-page/api-create-page.component').then(m => m.ApiCreatePageComponent)
-  },
-  {
-    path: 'apis/:id',
-    loadComponent: () => import('./pages/api-detail-page/api-detail-page.component').then(m => m.ApiDetailPageComponent)
-  }
 ];
-
