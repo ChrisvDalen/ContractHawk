@@ -1,0 +1,28 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+contracthawk:
+  storage:
+    local-dir: ${java.io.tmpdir}/contracthawk-test
+    allowed-extensions: json,yaml,yml
+  messaging:
+    exchange: contracthawk.analysis
+    queue: contracthawk.analysis.queue
+    routing-key: contracthawk.analysis
+    dead-letter-exchange: contracthawk.analysis.dlx
+    dead-letter-queue: contracthawk.analysis.dlq
+    dead-letter-routing-key: contracthawk.analysis.dead
+    retry:
+      max-attempts: 3
+      initial-interval-ms: 100
+      multiplier: 2.0
+      max-interval-ms: 1000
+
+logging:
+  level:
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN
