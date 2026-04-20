@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: Contract Hawk API
+  version: 1.0.0
+  description: API for uploading, analyzing, and tracking OpenAPI contracts.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/contracts:
+    post:
+      summary: Upload a new API contract
+      operationId: uploadContract
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - serviceName
+                - version
+                - file
+              properties:
+                serviceName:
+                  type: string
+                  example: order-service
+                version:
+                  type: string
+                  example: 1.2.0
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Contract uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: List all uploaded contracts
+      operationId: listContracts
+      responses:
+        '200':
+          description: Contract list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContractListItem'
+
+  /api/contracts/{id}:
+    get:
+      summary: Get contract details
+      operationId: getContractById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Contract details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractDetailsResponse'
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/contracts/{id}/analyses:
+    get:
+      summary: Get all analyses for a contract
+      operationId: getContractAnalyses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Analysis history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContractAnalysisResponse'
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/contracts/{id}/latest-analysis:
+    get:
+      summary: Get latest analysis for a contract
+      operationId: getLatestAnalysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Latest analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractAnalysisResponse'
+        '404':
+          description: Contract or analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ContractResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceName:
+          type: string
+        version:
+          type: string
+        originalFilename:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+
+    ContractListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceName:
+          type: string
+        version:
+          type: string
+        originalFilename:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+        latestStatus:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        breakingChangesDetected:
+          type: boolean
+          nullable: true
+
+    ContractDetailsResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceName:
+          type: string
+        version:
+          type: string
+        originalFilename:
+          type: string
+        storagePath:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+
+    ContractAnalysisResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        contractId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        validSpec:
+          type: boolean
+          nullable: true
+        pathCount:
+          type: integer
+          nullable: true
+        operationCount:
+          type: integer
+          nullable: true
+        breakingChangesDetected:
+          type: boolean
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+        summary:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string

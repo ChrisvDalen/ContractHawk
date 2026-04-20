@@ -1,24 +1,35 @@
-# IDE
+# OS / editors
+.DS_Store
+Thumbs.db
 .idea/
 .vscode/
 *.iml
 *.swp
-*.swo
 
-# Backend
+# Java / Maven
 backend/target/
-backend/.mvn/
+**/target/
+*.class
+*.log
+hs_err_pid*
 
-# Frontend
+# Node / Angular
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
-
-# Logs
-*.log
+frontend/coverage/
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# OS
-.DS_Store
-Thumbs.db
+# Generated OpenAPI clients (regenerated from /contracts)
+frontend/src/app/api/generated/
+backend/src/main/java/com/chrisvdalen/contracthawk/generated/openapi/*
+!backend/src/main/java/com/chrisvdalen/contracthawk/generated/openapi/.gitkeep
 
+# Runtime data
+data/
+backend/data/
+
+# Docker
+docker-compose.override.yml

@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: contract-hawk
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/contracthawk}
+    username: ${SPRING_DATASOURCE_USERNAME:contracthawk}
+    password: ${SPRING_DATASOURCE_PASSWORD:contracthawk}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:contracthawk}
+    password: ${SPRING_RABBITMQ_PASSWORD:contracthawk}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: 8080
+
+contracthawk:
+  storage:
+    local-dir: ${CONTRACTHAWK_STORAGE_DIR:./data/contracts}
+    allowed-extensions: json,yaml,yml
+  messaging:
+    exchange: contracthawk.analysis
+    queue: contracthawk.analysis.queue
+    routing-key: contracthawk.analysis
+    dead-letter-exchange: contracthawk.analysis.dlx
+    dead-letter-queue: contracthawk.analysis.dlq
+    dead-letter-routing-key: contracthawk.analysis.dead
+    retry:
+      max-attempts: 3
+      initial-interval-ms: 1000
+      multiplier: 2.0
+      max-interval-ms: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
