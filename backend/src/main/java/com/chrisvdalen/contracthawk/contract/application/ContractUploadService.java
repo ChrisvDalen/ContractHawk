@@ -64,7 +64,7 @@ public class ContractUploadService {
 
         ContractAnalysis analysis = analysisRepository.save(ContractAnalysis.pending(contract.getId(), now));
 
-        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId()));
+        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath()));
 
         log.info("Uploaded contract id={} service={} version={}", contract.getId(), serviceName, version);
         return ContractResponse.from(contract);
