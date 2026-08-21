@@ -27,7 +27,7 @@ When changing behavior, update the relevant spec or constraint first, then the c
 ```
 contract-hawk/
   contracts/     # Spec, constraints, verification (source of truth)
-  backend/       # Spring Boot 3 modular monolith (Java 21, Maven)
+  backend/       # Spring Boot 4 modular monolith (Java 25, Maven)
   frontend/      # Angular app (standalone components)
   docker/        # Dockerfiles
   compose.yaml   # Local Postgres + RabbitMQ + backend + frontend
@@ -69,10 +69,10 @@ src/app/
 
 ## Tech stack
 
-- Java 21, Spring Boot 3, Maven
+- Java 25, Spring Boot 4.1, Maven
 - PostgreSQL, Flyway migrations
 - RabbitMQ (retry + dead-letter)
-- Angular (standalone components)
+- Angular 22 (standalone, zoneless components)
 - Testcontainers, ArchUnit
 - Docker Compose
 

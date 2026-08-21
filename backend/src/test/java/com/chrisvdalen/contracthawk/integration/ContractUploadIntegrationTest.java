@@ -8,18 +8,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.rabbitmq.RabbitMQContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -32,13 +33,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ContractUploadIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine")
             .withDatabaseName("contracthawk")
             .withUsername("contracthawk")
             .withPassword("contracthawk");
 
     @Container
-    static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3.13-management-alpine");
+    static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:4.2-management-alpine");
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
@@ -66,8 +67,12 @@ class ContractUploadIntegrationTest {
     @Autowired
     MessagingProperties messagingProperties;
 
+    @Autowired
+    RabbitListenerEndpointRegistry listenerRegistry;
+
     @BeforeEach
     void cleanUp() {
+        listenerRegistry.stop();
         analysisRepository.deleteAll();
         contractRepository.deleteAll();
         drainQueue();

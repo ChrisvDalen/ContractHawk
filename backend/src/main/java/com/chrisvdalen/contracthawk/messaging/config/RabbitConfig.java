@@ -1,6 +1,5 @@
 package com.chrisvdalen.contracthawk.messaging.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
@@ -11,14 +10,11 @@ import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFacto
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.aopalliance.aop.Advice;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.retry.backoff.ExponentialBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
 
 @Configuration
 public class RabbitConfig {
@@ -61,8 +57,8 @@ public class RabbitConfig {
     }
 
     @Bean
-    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
-        return new Jackson2JsonMessageConverter(objectMapper);
+    public MessageConverter jsonMessageConverter() {
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean
@@ -87,19 +83,9 @@ public class RabbitConfig {
     private Advice retryInterceptor(MessagingProperties properties) {
         MessagingProperties.Retry retry = properties.retry();
 
-        ExponentialBackOffPolicy backOff = new ExponentialBackOffPolicy();
-        backOff.setInitialInterval(retry.initialIntervalMs());
-        backOff.setMultiplier(retry.multiplier());
-        backOff.setMaxInterval(retry.maxIntervalMs());
-
-        SimpleRetryPolicy policy = new SimpleRetryPolicy(retry.maxAttempts());
-
-        RetryTemplate template = new RetryTemplate();
-        template.setBackOffPolicy(backOff);
-        template.setRetryPolicy(policy);
-
         return RetryInterceptorBuilder.stateless()
-                .retryOperations(template)
+                .maxRetries(retry.maxAttempts())
+                .backOffOptions(retry.initialIntervalMs(), retry.multiplier(), retry.maxIntervalMs())
                 .recoverer(new RejectAndDontRequeueRecoverer())
                 .build();
     }
