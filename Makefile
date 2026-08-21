@@ -34,12 +34,12 @@ backend-test:
 	cd backend && ./mvnw test
 
 frontend-test:
-	cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
+	cd frontend && npm test
 
 generate:
 	cd backend && ./mvnw generate-sources
 	cd frontend && npm run generate:api
 
 clean:
-	cd backend && ./mvnw clean || true
-	rm -rf frontend/dist frontend/node_modules
+	cd backend && ./mvnw clean
+	cd frontend && npm run ng -- cache clean

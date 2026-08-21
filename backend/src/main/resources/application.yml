@@ -1,6 +1,9 @@
 spring:
   application:
     name: contract-hawk
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/contracthawk}
     username: ${SPRING_DATASOURCE_USERNAME:contracthawk}
