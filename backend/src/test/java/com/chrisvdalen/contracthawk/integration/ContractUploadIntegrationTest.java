@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -66,8 +67,12 @@ class ContractUploadIntegrationTest {
     @Autowired
     MessagingProperties messagingProperties;
 
+    @Autowired
+    RabbitListenerEndpointRegistry listenerRegistry;
+
     @BeforeEach
     void cleanUp() {
+        listenerRegistry.stop();
         analysisRepository.deleteAll();
         contractRepository.deleteAll();
         drainQueue();
