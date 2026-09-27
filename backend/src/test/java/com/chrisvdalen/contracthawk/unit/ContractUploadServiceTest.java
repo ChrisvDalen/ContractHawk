@@ -13,6 +13,7 @@ import com.chrisvdalen.contracthawk.shared.exception.BadRequestException;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
 import com.chrisvdalen.contracthawk.storage.domain.StoredFile;
 import com.chrisvdalen.contracthawk.storage.infrastructure.StorageProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -52,7 +53,7 @@ class ContractUploadServiceTest {
         analysisRepository = mock(ContractAnalysisRepository.class);
         fileStorageService = mock(FileStorageService.class);
         analysisJobPublisher = mock(AnalysisJobPublisher.class);
-        service = new ContractUploadService(contractRepository, analysisRepository, fileStorageService, analysisJobPublisher, PROPERTIES);
+        service = new ContractUploadService(contractRepository, analysisRepository, fileStorageService, analysisJobPublisher, PROPERTIES, new SimpleMeterRegistry());
     }
 
     private static MultipartFile yaml(String name) {

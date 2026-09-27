@@ -10,6 +10,7 @@ import com.chrisvdalen.contracthawk.analysis.domain.ParsedContract;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
 import com.chrisvdalen.contracthawk.messaging.application.AnalysisJob;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +43,7 @@ class ContractAnalysisServiceTest {
         analysisRepository = mock(ContractAnalysisRepository.class);
         fileStorageService = mock(FileStorageService.class);
         contractParser = mock(ContractParser.class);
-        service = new ContractAnalysisService(analysisRepository, fileStorageService, contractParser);
+        service = new ContractAnalysisService(analysisRepository, fileStorageService, contractParser, new SimpleMeterRegistry());
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.chrisvdalen.contracthawk.shared.exception.BadRequestException;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
 import com.chrisvdalen.contracthawk.storage.domain.StoredFile;
 import com.chrisvdalen.contracthawk.storage.infrastructure.StorageProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,17 +34,20 @@ public class ContractUploadService {
     private final ContractAnalysisRepository analysisRepository;
     private final FileStorageService fileStorageService;
     private final AnalysisJobPublisher analysisJobPublisher;
+    private final MeterRegistry meterRegistry;
     private final Set<String> allowedExtensions;
 
     public ContractUploadService(ContractRepository contractRepository,
                                  ContractAnalysisRepository analysisRepository,
                                  FileStorageService fileStorageService,
                                  AnalysisJobPublisher analysisJobPublisher,
-                                 StorageProperties storageProperties) {
+                                 StorageProperties storageProperties,
+                                 MeterRegistry meterRegistry) {
         this.contractRepository = contractRepository;
         this.analysisRepository = analysisRepository;
         this.fileStorageService = fileStorageService;
         this.analysisJobPublisher = analysisJobPublisher;
+        this.meterRegistry = meterRegistry;
         this.allowedExtensions = storageProperties.allowedExtensions().stream()
                 .map(s -> s.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
@@ -79,6 +83,7 @@ public class ContractUploadService {
         analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath(), previousPaths));
 
         log.info("Uploaded contract id={} service={} version={}", contract.getId(), serviceName, version);
+        meterRegistry.counter("contracthawk.contracts.uploads").increment();
         return ContractResponse.from(contract);
     }
 

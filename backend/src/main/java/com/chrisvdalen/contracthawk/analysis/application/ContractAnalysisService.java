@@ -7,6 +7,7 @@ import com.chrisvdalen.contracthawk.analysis.domain.ParsedContract;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
 import com.chrisvdalen.contracthawk.messaging.application.AnalysisJob;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -26,13 +27,16 @@ public class ContractAnalysisService {
     private final ContractAnalysisRepository analysisRepository;
     private final FileStorageService fileStorageService;
     private final ContractParser contractParser;
+    private final MeterRegistry meterRegistry;
 
     public ContractAnalysisService(ContractAnalysisRepository analysisRepository,
                                    FileStorageService fileStorageService,
-                                   ContractParser contractParser) {
+                                   ContractParser contractParser,
+                                   MeterRegistry meterRegistry) {
         this.analysisRepository = analysisRepository;
         this.fileStorageService = fileStorageService;
         this.contractParser = contractParser;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
@@ -77,6 +81,7 @@ public class ContractAnalysisService {
         log.info("Analysis {} completed for contract {} (paths={}, operations={}, valid={}, breakingChanges={})",
                 analysis.getId(), job.contractId(), parsed.pathCount(), parsed.operationCount(),
                 parsed.valid(), breaking.detected());
+        meterRegistry.counter("contracthawk.analyses", "outcome", "success").increment();
     }
 
     @Transactional
@@ -86,5 +91,6 @@ public class ContractAnalysisService {
             analysisRepository.save(analysis);
             log.warn("Analysis {} marked FAILED for contract {}: {}", analysis.getId(), job.contractId(), reason);
         });
+        meterRegistry.counter("contracthawk.analyses", "outcome", "failure").increment();
     }
 }
