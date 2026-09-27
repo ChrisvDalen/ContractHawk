@@ -9,7 +9,9 @@ import com.chrisvdalen.contracthawk.shared.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -25,8 +27,14 @@ public class ContractQueryService {
     }
 
     public List<ContractListItem> listAll() {
-        return contractRepository.findAll().stream()
-                .map(this::toListItem)
+        List<Contract> contracts = contractRepository.findAll();
+        Map<Long, ContractAnalysis> latestByContract = contracts.isEmpty()
+                ? Map.of()
+                : latestByContractId(
+                        analysisRepository.findByContractIdIn(
+                                contracts.stream().map(Contract::getId).toList()));
+        return contracts.stream()
+                .map(contract -> toListItem(contract, latestByContract.get(contract.getId())))
                 .toList();
     }
 
@@ -61,15 +69,23 @@ public class ContractQueryService {
         }
     }
 
-    private ContractListItem toListItem(Contract contract) {
-        Optional<ContractAnalysis> latest = analysisRepository.findTopByContractIdOrderByCreatedAtDesc(contract.getId());
+    private Map<Long, ContractAnalysis> latestByContractId(List<ContractAnalysis> analyses) {
+        Map<Long, ContractAnalysis> latest = new HashMap<>();
+        for (ContractAnalysis analysis : analyses) {
+            latest.merge(analysis.getContractId(), analysis, (current, candidate) ->
+                    candidate.getId() >= current.getId() ? candidate : current);
+        }
+        return latest;
+    }
+
+    private ContractListItem toListItem(Contract contract, ContractAnalysis latest) {
         return new ContractListItem(
                 contract.getId(),
                 contract.getServiceName(),
                 contract.getVersion(),
                 contract.getOriginalFilename(),
                 contract.getUploadedAt(),
-                latest.map(ContractAnalysis::getStatus).orElse(null),
-                latest.map(ContractAnalysis::getBreakingChangesDetected).orElse(null));
+                latest == null ? null : latest.getStatus(),
+                latest == null ? null : latest.getBreakingChangesDetected());
     }
 }

@@ -3,6 +3,7 @@ package com.chrisvdalen.contracthawk.analysis.repository;
 import com.chrisvdalen.contracthawk.analysis.domain.ContractAnalysis;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,4 +12,6 @@ public interface ContractAnalysisRepository extends JpaRepository<ContractAnalys
     List<ContractAnalysis> findByContractIdOrderByCreatedAtDesc(Long contractId);
 
     Optional<ContractAnalysis> findTopByContractIdOrderByCreatedAtDesc(Long contractId);
+
+    List<ContractAnalysis> findByContractIdIn(Collection<Long> contractIds);
 }
