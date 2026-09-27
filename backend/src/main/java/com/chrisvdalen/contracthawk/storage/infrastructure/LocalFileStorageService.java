@@ -28,10 +28,13 @@ public class LocalFileStorageService implements FileStorageService {
         String extension = extensionOf(originalFilename);
         String filename = Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + (extension.isEmpty() ? "" : "." + extension);
 
-        Path targetDir = baseDir.resolve(safeService).resolve(safeVersion);
-        Files.createDirectories(targetDir);
+        Path target = baseDir.resolve(safeService).resolve(safeVersion).resolve(filename).normalize();
+        if (!target.startsWith(baseDir)) {
+            throw new IllegalArgumentException(
+                    "Storage path escapes base directory: service=" + serviceName + ", version=" + version);
+        }
 
-        Path target = targetDir.resolve(filename);
+        Files.createDirectories(target.getParent());
         long size = Files.copy(content, target, StandardCopyOption.REPLACE_EXISTING);
 
         return new StoredFile(baseDir.relativize(target).toString(), size);

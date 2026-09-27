@@ -58,6 +58,9 @@ public class ContractUploadService {
             stored = fileStorageService.store(serviceName, version, file.getOriginalFilename(), file.getInputStream());
         } catch (IOException e) {
             throw new IllegalStateException("Failed to store uploaded contract", e);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("INVALID_STORAGE_COMPONENT",
+                    "serviceName or version contains disallowed path characters: " + e.getMessage());
         }
 
         OffsetDateTime now = OffsetDateTime.now();
