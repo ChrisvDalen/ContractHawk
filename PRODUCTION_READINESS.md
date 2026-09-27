@@ -26,11 +26,11 @@ this sandbox).
 |---|---|---|
 | Backend compile | `cd backend && ./mvnw clean test-compile` | PASS |
 | Backend non-Docker tests | `./mvnw test -Dtest='ArchitectureTest,BreakingChangeDetectorTest,SwaggerContractParserTest,ContractAnalysisServiceTest,LocalFileStorageServiceTest,ContractUploadServiceTest'` | **40 tests, 0 failures** |
-| Backend coverage gate | `./mvnw jacoco:check` (bundle ≥ 0.50) | PASS (≈62% instructions, unit tests only) |
+| Backend coverage gate | `./mvnw jacoco:check` (bundle ≥ 0.50) | PASS in CI on the full 50-test suite (≈62% instructions unit-only, higher in CI) |
 | Frontend audit | `npx npm@11.9.0 audit` | **0 vulnerabilities** (was 5: 1 high, 4 moderate) |
 | Frontend tests | `npm test` | PASS (1/1) |
 | Frontend build | `npm run build` | PASS |
-| Containerized tests | `./mvnw verify` (full) | Requires Docker — not runnable in this sandbox; runs in CI |
+| Backend full suite (CI) | `./mvnw --batch-mode verify` | **50 tests, 0 failures** (incl. Testcontainers integration + repository slice tests) — verified in GitHub Actions run 36330062161 |
 
 No code-level pre-existing failures were introduced by this work; the 2
 Testcontainers integration tests cannot start containers in this sandbox
@@ -100,15 +100,14 @@ Testcontainers integration tests cannot start containers in this sandbox
 
 ## Remaining risks
 
-1. **Containerized tests not run here.** `ContractUploadIntegrationTest`, `ContractAnalysisIntegrationTest`, and `ContractRepositoriesTest` require Docker/Testcontainers and only execute in CI. The non-Docker unit + ArchUnit + coverage gate validate the changed logic, but the end-to-end upload→publish→consume→analyze path is only proven in CI.
-2. **OWASP dependency scanning** is not in CI (M4). Maven/frontend deps are BOM-locked and npm-audited (0 findings), but a `dependency-check-maven` job would add SCA coverage for transitive CVEs. Low risk, higher CI cost.
-3. **No authentication** (by design for MVP). Actuator, upload, and contract endpoints are unauthenticated — must sit behind an authenticated gateway before any internet exposure.
-4. **`storagePath` (internal disk path)** is exposed by the detail endpoint (L4) — acceptable per the OpenAPI contract for MVP but should be dropped when auth lands.
-5. **Docker image healthchecks use `curl` (backend) / `wget` (frontend)** — both present in the base images, but if the base images ever drop them the healthchecks silently stop working.
+1. **OWASP dependency scanning** is not in CI. Maven/frontend deps are BOM-locked and npm-audited (0 findings), but a `dependency-check-maven` job would add SCA coverage for transitive CVEs. Low risk, higher CI cost.
+2. **No authentication** (by design for MVP). Actuator, upload, and contract endpoints are unauthenticated — must sit behind an authenticated gateway before any internet exposure.
+3. **`storagePath` (internal disk path)** is exposed by the detail endpoint (L4) — acceptable per the OpenAPI contract for MVP but should be dropped when auth lands.
+4. **Docker image healthchecks use `curl` (backend) / `wget` (frontend)** — both present in the base images, but if the base images ever drop them the healthchecks silently stop working.
 
 ## Recommended next actions (prioritized)
 
-1. Verify the full `./mvnw clean verify` is green in CI (Docker-backed integration tests) — not runnable in this sandbox.
+1. Re-verify in CI whenever `ci.yml` or `compose.yaml` changes — the containerized integration tests are the only coverage for the full upload→publish→consume→analyze path.
 2. Add `dependency-check-maven` (OWASP) as a scheduled (not per-PR) CI job to balance SCA coverage against CI cost.
 3. Build out the frontend feature pages (currently stubs) — product work.
 4. Introduce authentication + a gateway that restricts `/actuator` before any public exposure (lifts L3/L4).
