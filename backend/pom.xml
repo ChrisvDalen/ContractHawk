@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <swagger-parser.version>2.1.47</swagger-parser.version>
+        <swagger-parser.version>2.1.48</swagger-parser.version>
         <archunit.version>1.4.1</archunit.version>
         <spring-retry.version>2.0.13</spring-retry.version>
         <testcontainers.version>2.0.5</testcontainers.version>
@@ -73,11 +73,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
@@ -127,14 +122,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
             </plugin>
         </plugins>
     </build>
