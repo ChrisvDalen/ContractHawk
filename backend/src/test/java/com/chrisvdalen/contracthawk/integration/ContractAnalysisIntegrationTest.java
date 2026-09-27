@@ -188,10 +188,23 @@ class ContractAnalysisIntegrationTest {
                         '200':
                           description: ok
                 """;
-        String v2 = v1
-                .replace("version: '1.0.0'", "version: '1.1.0'")
-                .replaceFirst("(/orders:\\s*get:\\s*responses:\\s*'200':\\s*description: ok)",
-                        "$1\n                  /orders/{id}:\n                    get:\n                      responses:\n                        '200':\n                          description: ok");
+        String v2 = """
+                openapi: 3.0.3
+                info:
+                  title: Orders
+                  version: '1.1.0'
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                  /orders/{id}:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """;
 
         upload("order-service", "1.0.0", "spec-v1.yaml", v1.getBytes());
         awaitCompleted(1, false);
