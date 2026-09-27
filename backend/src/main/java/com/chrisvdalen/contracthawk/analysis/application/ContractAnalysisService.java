@@ -1,5 +1,7 @@
 package com.chrisvdalen.contracthawk.analysis.application;
 
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeDetector;
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeResult;
 import com.chrisvdalen.contracthawk.analysis.domain.ContractAnalysis;
 import com.chrisvdalen.contracthawk.analysis.domain.ParsedContract;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
@@ -55,18 +57,26 @@ public class ContractAnalysisService {
         if (!parsed.validationMessages().isEmpty()) {
             summary.put("validationMessages", parsed.validationMessages());
         }
+        summary.put("paths", parsed.paths());
+
+        BreakingChangeResult breaking = BreakingChangeDetector.detect(
+                job.previousPaths() == null ? Map.of() : job.previousPaths(), parsed.paths());
+        if (breaking.detected()) {
+            summary.put("breakingChanges", breaking.changes());
+        }
 
         analysis.markCompleted(
                 OffsetDateTime.now(),
                 parsed.valid(),
                 parsed.pathCount(),
                 parsed.operationCount(),
-                false,
+                breaking.detected(),
                 summary);
         analysisRepository.save(analysis);
 
-        log.info("Analysis {} completed for contract {} (paths={}, operations={}, valid={})",
-                analysis.getId(), job.contractId(), parsed.pathCount(), parsed.operationCount(), parsed.valid());
+        log.info("Analysis {} completed for contract {} (paths={}, operations={}, valid={}, breakingChanges={})",
+                analysis.getId(), job.contractId(), parsed.pathCount(), parsed.operationCount(),
+                parsed.valid(), breaking.detected());
     }
 
     @Transactional

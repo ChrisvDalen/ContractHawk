@@ -1,5 +1,6 @@
 package com.chrisvdalen.contracthawk.contract.application;
 
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeDetector;
 import com.chrisvdalen.contracthawk.analysis.domain.ContractAnalysis;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
 import com.chrisvdalen.contracthawk.contract.domain.Contract;
@@ -19,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -64,7 +66,14 @@ public class ContractUploadService {
 
         ContractAnalysis analysis = analysisRepository.save(ContractAnalysis.pending(contract.getId(), now));
 
-        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath()));
+        var previous = contractRepository.findTopByServiceNameAndIdNotOrderByUploadedAtDesc(serviceName, contract.getId());
+        Map<String, Set<String>> previousPaths = previous
+                .flatMap(c -> analysisRepository.findTopByContractIdOrderByCreatedAtDesc(c.getId()))
+                .filter(a -> a.getSummary() != null)
+                .map(a -> BreakingChangeDetector.fromSummary(a.getSummary()))
+                .orElse(Map.of());
+
+        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath(), previousPaths));
 
         log.info("Uploaded contract id={} service={} version={}", contract.getId(), serviceName, version);
         return ContractResponse.from(contract);

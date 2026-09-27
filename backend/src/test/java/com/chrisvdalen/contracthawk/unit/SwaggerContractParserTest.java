@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,6 +49,32 @@ class SwaggerContractParserTest {
         assertThat(parsed.valid()).isTrue();
         assertThat(parsed.pathCount()).isEqualTo(2);
         assertThat(parsed.operationCount()).isEqualTo(3);
+        assertThat(parsed.paths())
+                .containsEntry("/orders", Set.of("get", "post"))
+                .containsEntry("/orders/{id}", Set.of("get"));
+    }
+
+    @Test
+    void parsesJsonSpec() throws Exception {
+        String spec = """
+                {
+                  "openapi": "3.0.3",
+                  "info": { "title": "Orders", "version": "1.0.0" },
+                  "paths": {
+                    "/orders": {
+                      "get": { "responses": { "200": { "description": "ok" } } },
+                      "post": { "responses": { "201": { "description": "created" } } }
+                    }
+                  }
+                }
+                """;
+
+        ParsedContract parsed = parser.parse(new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(parsed.valid()).isTrue();
+        assertThat(parsed.pathCount()).isEqualTo(1);
+        assertThat(parsed.operationCount()).isEqualTo(2);
+        assertThat(parsed.paths()).containsEntry("/orders", Set.of("get", "post"));
     }
 
     @Test
@@ -58,5 +85,24 @@ class SwaggerContractParserTest {
         assertThat(parsed.valid()).isFalse();
         assertThat(parsed.pathCount()).isZero();
         assertThat(parsed.operationCount()).isZero();
+        assertThat(parsed.paths()).isEmpty();
+    }
+
+    @Test
+    void missingInfoTitleIsReportedAsInvalid() throws Exception {
+        String spec = """
+                openapi: 3.0.3
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """;
+
+        ParsedContract parsed = parser.parse(new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(parsed.valid()).isFalse();
+        assertThat(parsed.validationMessages()).isNotEmpty();
     }
 }
