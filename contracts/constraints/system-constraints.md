@@ -23,7 +23,7 @@
 
 ## Technical constraints
 
-- Java 21
+- Java 25
 - Spring Boot
 - Maven
 - PostgreSQL
