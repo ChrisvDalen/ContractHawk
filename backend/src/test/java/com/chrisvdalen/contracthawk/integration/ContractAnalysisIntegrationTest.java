@@ -114,6 +114,125 @@ class ContractAnalysisIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void removingPathBetweenVersionsIsDetectedAsBreakingChange() throws Exception {
+        String v1 = """
+                openapi: 3.0.3
+                info:
+                  title: Orders
+                  version: '1.0.0'
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                    post:
+                      responses:
+                        '201':
+                          description: created
+                  /orders/{id}:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """;
+        String v2 = """
+                openapi: 3.0.3
+                info:
+                  title: Orders
+                  version: '2.0.0'
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                    post:
+                      responses:
+                        '201':
+                          description: created
+                """;
+
+        upload("order-service", "1.0.0", "spec-v1.yaml", v1.getBytes());
+        awaitCompleted(1, false);
+
+        upload("order-service", "2.0.0", "spec-v2.yaml", v2.getBytes());
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            List<ContractAnalysis> all = analysisRepository.findAll();
+            assertThat(all).hasSize(2);
+            ContractAnalysis latest = all.stream()
+                    .max(java.util.Comparator.comparing(ContractAnalysis::getCreatedAt))
+                    .orElseThrow();
+            assertThat(latest.getStatus()).isEqualTo(AnalysisStatus.COMPLETED);
+            assertThat(latest.getValidSpec()).isTrue();
+            assertThat(latest.getBreakingChangesDetected()).isTrue();
+            Object changes = latest.getSummary().get("breakingChanges");
+            assertThat(changes).isInstanceOf(List.class);
+            assertThat((List<?>) changes).extracting(Object::toString)
+                    .anySatisfy(s -> assertThat(s).contains("PATH_REMOVED", "/orders/{id}"));
+        });
+    }
+
+    @Test
+    void addingPathBetweenVersionsIsNotBreakingChange() throws Exception {
+        String v1 = """
+                openapi: 3.0.3
+                info:
+                  title: Orders
+                  version: '1.0.0'
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """;
+        String v2 = """
+                openapi: 3.0.3
+                info:
+                  title: Orders
+                  version: '1.1.0'
+                paths:
+                  /orders:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                  /orders/{id}:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """;
+
+        upload("order-service", "1.0.0", "spec-v1.yaml", v1.getBytes());
+        awaitCompleted(1, false);
+
+        upload("order-service", "1.1.0", "spec-v2.yaml", v2.getBytes());
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            List<ContractAnalysis> all = analysisRepository.findAll();
+            assertThat(all).hasSize(2);
+            ContractAnalysis latest = all.stream()
+                    .max(java.util.Comparator.comparing(ContractAnalysis::getCreatedAt))
+                    .orElseThrow();
+            assertThat(latest.getStatus()).isEqualTo(AnalysisStatus.COMPLETED);
+            assertThat(latest.getBreakingChangesDetected()).isFalse();
+        });
+    }
+
+    private void awaitCompleted(int expectedTotal, boolean expectedBreaking) {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            List<ContractAnalysis> all = analysisRepository.findAll();
+            assertThat(all).hasSize(expectedTotal);
+            for (ContractAnalysis analysis : all) {
+                assertThat(analysis.getStatus()).isEqualTo(AnalysisStatus.COMPLETED);
+                assertThat(analysis.getBreakingChangesDetected()).isEqualTo(expectedBreaking);
+            }
+        });
+    }
+
+    @Test
     void invalidContractReachesCompletedWithValidSpecFalse() throws Exception {
         upload("order-service", "1.0.0", "spec.yaml", "not a valid openapi document".getBytes());
 

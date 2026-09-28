@@ -7,5 +7,12 @@ COPY contracts /contracts
 RUN npm run build
 
 FROM nginx:1.31-alpine
-COPY --from=build /app/dist/contract-hawk/browser /usr/share/nginx/html
-EXPOSE 80
+COPY docker/frontend-nginx.conf /etc/nginx/nginx.conf
+# Run the workers as the unprivileged built-in "nginx" user; give it the
+# cache/log dirs the master process normally writes to.
+RUN chown -R nginx:nginx /var/cache/nginx /var/log/nginx /var/lib/nginx \
+    && mkdir -p /tmp/nginx && chown nginx:nginx /tmp/nginx
+USER nginx
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1

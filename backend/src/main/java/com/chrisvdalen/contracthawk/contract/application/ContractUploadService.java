@@ -1,5 +1,6 @@
 package com.chrisvdalen.contracthawk.contract.application;
 
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeDetector;
 import com.chrisvdalen.contracthawk.analysis.domain.ContractAnalysis;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
 import com.chrisvdalen.contracthawk.contract.domain.Contract;
@@ -10,6 +11,7 @@ import com.chrisvdalen.contracthawk.shared.exception.BadRequestException;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
 import com.chrisvdalen.contracthawk.storage.domain.StoredFile;
 import com.chrisvdalen.contracthawk.storage.infrastructure.StorageProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,17 +34,20 @@ public class ContractUploadService {
     private final ContractAnalysisRepository analysisRepository;
     private final FileStorageService fileStorageService;
     private final AnalysisJobPublisher analysisJobPublisher;
+    private final MeterRegistry meterRegistry;
     private final Set<String> allowedExtensions;
 
     public ContractUploadService(ContractRepository contractRepository,
                                  ContractAnalysisRepository analysisRepository,
                                  FileStorageService fileStorageService,
                                  AnalysisJobPublisher analysisJobPublisher,
-                                 StorageProperties storageProperties) {
+                                 StorageProperties storageProperties,
+                                 MeterRegistry meterRegistry) {
         this.contractRepository = contractRepository;
         this.analysisRepository = analysisRepository;
         this.fileStorageService = fileStorageService;
         this.analysisJobPublisher = analysisJobPublisher;
+        this.meterRegistry = meterRegistry;
         this.allowedExtensions = storageProperties.allowedExtensions().stream()
                 .map(s -> s.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toUnmodifiableSet());
@@ -56,6 +62,9 @@ public class ContractUploadService {
             stored = fileStorageService.store(serviceName, version, file.getOriginalFilename(), file.getInputStream());
         } catch (IOException e) {
             throw new IllegalStateException("Failed to store uploaded contract", e);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("INVALID_STORAGE_COMPONENT",
+                    "serviceName or version contains disallowed path characters: " + e.getMessage());
         }
 
         OffsetDateTime now = OffsetDateTime.now();
@@ -64,9 +73,17 @@ public class ContractUploadService {
 
         ContractAnalysis analysis = analysisRepository.save(ContractAnalysis.pending(contract.getId(), now));
 
-        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath()));
+        var previous = contractRepository.findTopByServiceNameAndIdNotOrderByUploadedAtDesc(serviceName, contract.getId());
+        Map<String, Set<String>> previousPaths = previous
+                .flatMap(c -> analysisRepository.findTopByContractIdOrderByCreatedAtDesc(c.getId()))
+                .filter(a -> a.getSummary() != null)
+                .map(a -> BreakingChangeDetector.fromSummary(a.getSummary()))
+                .orElse(Map.of());
+
+        analysisJobPublisher.publish(new AnalysisJob(contract.getId(), analysis.getId(), contract.getStoragePath(), previousPaths));
 
         log.info("Uploaded contract id={} service={} version={}", contract.getId(), serviceName, version);
+        meterRegistry.counter("contracthawk.contracts.uploads").increment();
         return ContractResponse.from(contract);
     }
 

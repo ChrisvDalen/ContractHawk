@@ -1,10 +1,13 @@
 package com.chrisvdalen.contracthawk.analysis.application;
 
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeDetector;
+import com.chrisvdalen.contracthawk.analysis.domain.BreakingChangeResult;
 import com.chrisvdalen.contracthawk.analysis.domain.ContractAnalysis;
 import com.chrisvdalen.contracthawk.analysis.domain.ParsedContract;
 import com.chrisvdalen.contracthawk.analysis.repository.ContractAnalysisRepository;
 import com.chrisvdalen.contracthawk.messaging.application.AnalysisJob;
 import com.chrisvdalen.contracthawk.storage.application.FileStorageService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,13 +27,16 @@ public class ContractAnalysisService {
     private final ContractAnalysisRepository analysisRepository;
     private final FileStorageService fileStorageService;
     private final ContractParser contractParser;
+    private final MeterRegistry meterRegistry;
 
     public ContractAnalysisService(ContractAnalysisRepository analysisRepository,
                                    FileStorageService fileStorageService,
-                                   ContractParser contractParser) {
+                                   ContractParser contractParser,
+                                   MeterRegistry meterRegistry) {
         this.analysisRepository = analysisRepository;
         this.fileStorageService = fileStorageService;
         this.contractParser = contractParser;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
@@ -55,18 +61,27 @@ public class ContractAnalysisService {
         if (!parsed.validationMessages().isEmpty()) {
             summary.put("validationMessages", parsed.validationMessages());
         }
+        summary.put("paths", parsed.paths());
+
+        BreakingChangeResult breaking = BreakingChangeDetector.detect(
+                job.previousPaths() == null ? Map.of() : job.previousPaths(), parsed.paths());
+        if (breaking.detected()) {
+            summary.put("breakingChanges", breaking.changes());
+        }
 
         analysis.markCompleted(
                 OffsetDateTime.now(),
                 parsed.valid(),
                 parsed.pathCount(),
                 parsed.operationCount(),
-                false,
+                breaking.detected(),
                 summary);
         analysisRepository.save(analysis);
 
-        log.info("Analysis {} completed for contract {} (paths={}, operations={}, valid={})",
-                analysis.getId(), job.contractId(), parsed.pathCount(), parsed.operationCount(), parsed.valid());
+        log.info("Analysis {} completed for contract {} (paths={}, operations={}, valid={}, breakingChanges={})",
+                analysis.getId(), job.contractId(), parsed.pathCount(), parsed.operationCount(),
+                parsed.valid(), breaking.detected());
+        meterRegistry.counter("contracthawk.analyses", "outcome", "success").increment();
     }
 
     @Transactional
@@ -76,5 +91,6 @@ public class ContractAnalysisService {
             analysisRepository.save(analysis);
             log.warn("Analysis {} marked FAILED for contract {}: {}", analysis.getId(), job.contractId(), reason);
         });
+        meterRegistry.counter("contracthawk.analyses", "outcome", "failure").increment();
     }
 }

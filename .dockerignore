@@ -1,0 +1,9 @@
+.git
+.github
+**/node_modules
+**/target
+frontend/dist
+backend/data
+**/.idea
+**/*.iml
+docker

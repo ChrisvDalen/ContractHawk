@@ -36,6 +36,8 @@ contracthawk:
   storage:
     local-dir: ${CONTRACTHAWK_STORAGE_DIR:./data/contracts}
     allowed-extensions: json,yaml,yml
+  cors:
+    allowed-origins: ${CONTRACTHAWK_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
   messaging:
     exchange: contracthawk.analysis
     queue: contracthawk.analysis.queue
@@ -57,3 +59,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
