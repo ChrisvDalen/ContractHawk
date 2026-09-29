@@ -23,7 +23,7 @@
         <archunit.version>1.5.0</archunit.version>
         <spring-retry.version>2.0.13</spring-retry.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <jacoco.version>0.8.13</jacoco.version>
+        <jacoco.version>0.8.15</jacoco.version>
         <jacoco.coverage.minimum>0.50</jacoco.coverage.minimum>
     </properties>
 
